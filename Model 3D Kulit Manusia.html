@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Model 3D Kulit Manusia</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600&family=Source+Serif+4:wght@600&display=swap">
+<style>
+:root{--bg:#120d10;--ink:#f3e8e4;--mute:#b8a7ac;--card:#1d1518;--line:#3a2c31;--sel:#4fd0dc;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#120d10}}
+:root[data-theme="dark"]{--bg:#120d10}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Figtree,system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:18px 14px 40px}
+h1{font:600 28px/1.15 "Source Serif 4",Georgia,serif;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 14px;font-size:14px}
+#stage{position:relative;height:min(68vh,560px);border-radius:16px;overflow:hidden;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#3b2630 0%,#1a1115 60%,#0d090b 100%);touch-action:none}
+canvas{display:block;width:100%;height:100%}
+.tag{position:absolute;left:0;top:0;font:600 11px Figtree,sans-serif;padding:4px 9px;border-radius:999px;background:rgba(18,13,16,.72);color:#fff;border:1px solid rgba(255,255,255,.28);white-space:nowrap;cursor:pointer;will-change:transform}
+.tag.on{background:var(--sel);color:#06262a;border-color:var(--sel)}
+#hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:12px;color:var(--mute);pointer-events:none}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.tabs button{font:inherit;font-size:14px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 13px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--sel);border-color:var(--sel);color:#06262a}
+#info{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--sel);border-radius:10px;padding:14px 16px}
+#info h2{font:600 20px "Source Serif 4",Georgia,serif;margin:0 0 6px}
+#info p{margin:0 0 8px}#info ul{margin:0;padding-left:18px}
+</style>
+</head>
+<body>
+<main>
+<h1>Model 3D Kulit Manusia</h1>
+<p class="sub">Penampang kulit tiga dimensi. Putar, perbesar, lalu pilih bagian untuk membaca fungsinya.</p>
+<div id="stage"><div id="hint">Seret untuk memutar, cubit untuk zoom, ketuk bagian untuk info</div></div>
+<div class="tabs" role="group" aria-label="Pilih bagian"></div>
+<div id="info" aria-live="polite"></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var D={
+epi:["Epidermis","<p>Lapisan terluar, tersusun dari epitel berlapis pipih tanpa pembuluh darah. Permukaannya berlekuk halus seperti pola kulit asli.</p><ul><li>Melindungi dari kuman, bahan kimia, sinar UV, dan kehilangan air.</li><li>Keratinosit membentuk keratin; melanosit membentuk melanin (warna kulit).</li><li>Sel mati di permukaan terus terkelupas dan diganti dari lapisan basal.</li></ul>"],
+der:["Dermis","<p>Lapisan tengah yang lebih tebal, berisi jaringan ikat dengan serabut kolagen dan elastin (serabut halus di model).</p><ul><li>Memberi kekuatan dan kelenturan kulit.</li><li>Pembuluh darah (merah dan biru) memberi nutrisi ke epidermis dan membantu mengatur suhu.</li><li>Tempat akar rambut, kelenjar keringat, kelenjar sebasea, dan ujung saraf.</li></ul>"],
+hyp:["Hipodermis","<p>Lapisan terdalam (jaringan subkutan), terutama sel lemak (adiposit) kuning pada model.</p><ul><li>Menyimpan cadangan energi dalam bentuk lemak.</li><li>Menjadi isolator panas dan bantalan terhadap benturan.</li><li>Menghubungkan kulit dengan otot dan tulang di bawahnya.</li></ul>"],
+sweat:["Kelenjar keringat (sudorifera)","<p>Kelenjar berbentuk tabung bergulung di dermis (gulungan ungu), dengan saluran spiral yang bermuara di pori kulit.</p><ul><li>Mengeluarkan keringat (air, garam, sedikit urea) saat tubuh panas.</li><li>Penguapan keringat mendinginkan tubuh dan menjaga suhu tetap stabil.</li><li>Membantu membuang sebagian sisa metabolisme.</li></ul>"],
+seb:["Kelenjar sebasea (minyak)","<p>Kelenjar berlobus krem di dermis yang bermuara ke folikel rambut.</p><ul><li>Menghasilkan sebum, minyak yang melumasi kulit dan rambut.</li><li>Menjaga kulit tetap lembap, lentur, dan tidak mudah kering.</li><li>Sebum bersifat sedikit antibakteri; produksi berlebih dapat menyumbat pori dan memicu jerawat.</li></ul>"],
+nerve:["Reseptor saraf","<p>Serabut saraf (kuning) dengan ujung penerima rangsangan yang mengirim sinyal ke otak.</p><ul><li><b>Korpuskel Meissner</b> (dermis atas): sentuhan ringan.</li><li><b>Korpuskel Pacini</b> (berlapis seperti bawang, di hipodermis): tekanan dan getaran.</li><li>Ujung saraf bebas di epidermis: nyeri, panas, dan dingin.</li></ul>"]};
+var NAMES={epi:"Epidermis",der:"Dermis",hyp:"Hipodermis",sweat:"Kelenjar keringat",seb:"Kelenjar sebasea",nerve:"Reseptor saraf"};
+var ANCH={epi:[3,1.2,1.9],der:[3,0,1.9],hyp:[3,-2,1.9],sweat:[-1.6,0.7,0.5],seb:[2.2,0.7,-0.3],nerve:[0.3,-2.15,0.7]};
+var FOC={epi:[0,1.2,0],der:[0,0,0],hyp:[0,-2.1,0],sweat:[-1.6,0.1,0.5],seb:[1.6,0.2,-0.3],nerve:[0.1,-0.6,0.7]};
+var L={epi:1,der:1,hyp:1};
+var stage=document.getElementById("stage"),info=document.getElementById("info"),tabs=document.querySelector(".tabs");
+function intro(){info.innerHTML="<h2>Pilih bagian kulit</h2><p>Ketuk lapisan atau struktur pada model, atau gunakan tombol di atas. Ketuk lagi untuk kembali ke tampilan awal.</p>"}
+intro();
+try{
+var T=THREE,W=stage.clientWidth,H=stage.clientHeight;
+var R=new T.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(W,H);R.outputEncoding=T.sRGBEncoding;stage.insertBefore(R.domElement,stage.firstChild);
+var S=new T.Scene(),C=new T.PerspectiveCamera(38,W/H,.1,100);
+S.add(new T.HemisphereLight(0xfff0e8,0x4a2a30,.75));
+var d1=new T.DirectionalLight(0xffffff,1.5);d1.position.set(4,7,5);S.add(d1);
+var d2=new T.DirectionalLight(0xff9a80,.8);d2.position.set(-5,2,-4);S.add(d2);
+var all=[];
+function M(c,o){return new T.MeshPhysicalMaterial(Object.assign({color:c,roughness:.38,clearcoat:.6,clearcoatRoughness:.3},o||{}))}
+function reg(k,m){if(k){m.userData.k=k;m.userData.o0=m.material.opacity;all.push(m)}S.add(m);return m}
+function V(a){return new T.Vector3(a[0],a[1],a[2])}
+function tube(p,r,m,seg){return new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(p.map(V)),seg||48,r,8,false),m)}
+/* skin texture */
+function skinTex(){var c=document.createElement("canvas");c.width=c.height=512;var g=c.getContext("2d");g.fillStyle="#e7ae8e";g.fillRect(0,0,512,512);
+for(var i=0;i<4500;i++){g.fillStyle=Math.random()<.5?"rgba(130,62,42,"+(.05+Math.random()*.07)+")":"rgba(255,228,208,"+(.06+Math.random()*.08)+")";g.beginPath();g.arc(Math.random()*512,Math.random()*512,Math.random()*2.4+.4,0,7);g.fill()}
+g.strokeStyle="rgba(110,52,38,.4)";g.lineWidth=1.4;for(var k=-8;k<24;k++){g.beginPath();g.moveTo(k*32,0);g.lineTo(k*32+512,512);g.moveTo(k*32+512,0);g.lineTo(k*32,512);g.stroke()}
+var t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(2,1.4);t.encoding=T.sRGBEncoding;return t}
+var tex=skinTex();
+/* layers */
+function layer(k,h,y,col,op){var m=new T.Mesh(new T.BoxGeometry(6,h,4),M(col,{transparent:true,opacity:op,depthWrite:false,roughness:.5,clearcoat:.2}));m.position.y=y;m.add(new T.LineSegments(new T.EdgesGeometry(m.geometry),new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.4})));m.renderOrder=0;reg(k,m)}
+layer("hyp",2,-2.2,0xf6d27a,.2);layer("der",2.2,-.1,0xe8847e,.2);layer("epi",.34,1.17,0xeaa98a,.5);
+/* top surface */
+var pg=new T.PlaneGeometry(6,4,170,115);pg.rotateX(-Math.PI/2);var pp=pg.attributes.position;
+for(var i=0;i<pp.count;i++){var x=pp.getX(i),z=pp.getZ(i);var a=1-Math.abs(Math.sin((x+z)*6)),b=1-Math.abs(Math.sin((x-z)*6));pp.setY(i,1.37-.028*(Math.pow(a,8)+Math.pow(b,8))+.012*Math.sin(x*3)*Math.cos(z*2.3))}
+pg.computeVertexNormals();
+var top=new T.Mesh(pg,new T.MeshStandardMaterial({map:tex,bumpMap:tex,bumpScale:.8,roughness:.55,color:0xffffff}));reg("epi",top);
+/* hair, follicle */
+var hair=tube([[1.6,2.5,-.3],[1.78,1.8,-.3],[1.64,1.1,-.3],[1.6,.2,-.3],[1.6,-.9,-.3]],.045,M(0x2a1a12,{roughness:.5}),80);S.add(hair);
+var fol=new T.Mesh(new T.CylinderGeometry(.14,.14,2,20),M(0xf2d2c6,{transparent:true,opacity:.35,depthWrite:false}));fol.position.set(1.6,.1,-.3);S.add(fol);
+var bulb=new T.Mesh(new T.SphereGeometry(.25,24,16),M(0xf0cfc0));bulb.position.set(1.6,-.95,-.3);S.add(bulb);
+/* sebaceous glands */
+var sm=M(0xf4dfa0,{roughness:.3,clearcoat:.8});
+[2.2,1.0].forEach(function(cx){[[0,0,0,.27],[.2,.15,.1,.2],[-.1,.2,-.12,.2],[.15,-.18,-.1,.19],[-.18,-.1,.15,.18],[.05,.02,.22,.17]].forEach(function(o){var s=new T.Mesh(new T.SphereGeometry(o[3],20,14),sm);s.position.set(cx+o[0],.25+o[1],-.3+o[2]);reg("seb",s)});
+reg("seb",tube([[cx,.3,-.3],[(cx+1.6)/2,.5,-.3],[1.6,.6,-.3]],.045,sm,16))});
+/* sweat gland */
+var swm=M(0xb7549f,{roughness:.25,clearcoat:1});
+var kn=new T.Mesh(new T.TorusKnotGeometry(.26,.07,180,10,3,5),swm);kn.position.set(-1.6,-.62,.5);reg("sweat",kn);
+var dp=[];for(var i=0;i<=28;i++){var t=i/28;dp.push([-1.6+.09*Math.sin(t*20),-.3+t*1.68,.5+.09*Math.cos(t*20)])}
+reg("sweat",tube(dp,.045,swm,120));
+var pore=new T.Mesh(new T.TorusGeometry(.1,.03,10,24),M(0x7a3f35));pore.rotation.x=Math.PI/2;pore.position.set(-1.6,1.385,.5);reg("sweat",pore);
+var dr=new T.Mesh(new T.SphereGeometry(.07,16,12),M(0xcfe9ff,{transparent:true,opacity:.7,roughness:.05}));dr.position.set(-1.6,1.44,.5);reg("sweat",dr);
+/* nerves, receptors */
+var nm=M(0xf2c230,{roughness:.4});
+reg("nerve",tube([[-.2,.6,.7],[-.2,.2,.7],[-.1,-.5,.8],[.2,-1.2,.8],[.3,-1.85,.7]],.035,nm,60));
+reg("nerve",tube([[-.2,.55,.7],[-.35,.95,.75],[-.4,1.28,.78]],.02,nm,16));
+reg("nerve",tube([[-.2,.55,.7],[-.05,.95,.65],[.05,1.25,.7]],.02,nm,16));
+for(var i=0;i<7;i++){var d=new T.Mesh(new T.SphereGeometry(1,20,12),M(0xe6b422,{emissive:0x000000}));var f=.17*(1-Math.abs(i-3)/5);d.scale.set(f,.045,f);d.position.set(-.2,.7+i*.07,.7);reg("nerve",d)}
+for(var i=0;i<6;i++){var r=.13+i*.07;var sh=new T.Mesh(new T.SphereGeometry(1,28,18),M(i%2?0xf3dca0:0xe8c778,{transparent:true,opacity:.28,roughness:.2,depthWrite:false}));sh.scale.set(r*.8,r*1.3,r*.8);sh.position.set(.3,-2.15,.7);sh.renderOrder=2;reg("nerve",sh)}
+var core=new T.Mesh(new T.SphereGeometry(.09,16,12),nm);core.scale.y=1.6;core.position.set(.3,-2.15,.7);reg("nerve",core);
+/* blood vessels */
+var am=M(0xc23b3b,{roughness:.3}),vm=M(0x4a6fb5,{roughness:.3}),cm=M(0xb4364b,{roughness:.3});
+S.add(tube([[-3,-.95,-1.2],[0,-1,-1.2],[3,-.95,-1.2]],.09,am,40));S.add(tube([[-3,-1,-1.6],[0,-1.05,-1.6],[3,-1,-1.6]],.11,vm,40));
+[-2.4,-1,.4,2.4].forEach(function(x){S.add(tube([[x,-.95,-1.2],[x,-.1,-1],[x,.8,-.8],[x+.18,.95,-.8],[x+.3,.8,-.85],[x+.3,-.1,-1.2],[x+.3,-1,-1.55]],.028,cm,50))});
+/* collagen */
+var col=M(0xf6dcd2,{transparent:true,opacity:.5,roughness:.5,depthWrite:false});
+for(var i=0;i<26;i++){var x=Math.random()*5.4-2.7,y=Math.random()*1.8-.9,z=Math.random()*3.4-1.7;S.add(tube([[x,y,z],[x+Math.random()-.5,y+Math.random()*.5-.25,z+Math.random()-.5],[x+Math.random()*1.6-.8,y+Math.random()*.6-.3,z+Math.random()*1.6-.8]],.012,col,12))}
+/* fat cells */
+var fg=new T.SphereGeometry(1,24,16),fm=M(0xffd66e,{transparent:true,opacity:.8,roughness:.15,clearcoat:1});
+[-1.75,-2.65].forEach(function(y,row){for(var x=-2.5+row*.4;x<=2.6;x+=.85)for(var z=-1.5+row*.4;z<=1.6;z+=.85){if(Math.hypot(x-.3,z-.7)<1)continue;var r=.34+Math.random()*.08,s=new T.Mesh(fg,fm);s.scale.setScalar(r);s.position.set(x+Math.random()*.1,y+Math.random()*.1,z+Math.random()*.1);reg("hyp",s)}});
+/* camera control */
+var th=.6,ph=1.15,rad=12,radT=12,tgt=V([0,-.9,0]),tgtC=tgt.clone(),auto=true;
+var ptrs={},pd=0,down=null;
+var cv=R.domElement;
+cv.addEventListener("pointerdown",function(e){cv.setPointerCapture(e.pointerId);ptrs[e.pointerId]=[e.clientX,e.clientY];auto=false;down=[e.clientX,e.clientY,Object.keys(ptrs).length]});
+cv.addEventListener("pointermove",function(e){var p=ptrs[e.pointerId];if(!p)return;var n=Object.keys(ptrs).length;
+if(n===1){th-=(e.clientX-p[0])*.008;ph=Math.max(.2,Math.min(1.75,ph-(e.clientY-p[1])*.006))}
+ptrs[e.pointerId]=[e.clientX,e.clientY];
+if(n===2){var k=Object.keys(ptrs),a=ptrs[k[0]],b=ptrs[k[1]],d=Math.hypot(a[0]-b[0],a[1]-b[1]);if(pd)radT=Math.max(5,Math.min(20,radT*pd/d));pd=d}});
+function up(e){var wasTap=down&&down[2]===1&&Math.hypot(e.clientX-down[0],e.clientY-down[1])<6&&ptrs[e.pointerId];delete ptrs[e.pointerId];pd=0;if(e.type==="pointerup"&&wasTap)pick(e)}
+cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+cv.addEventListener("wheel",function(e){e.preventDefault();auto=false;radT=Math.max(5,Math.min(20,radT*(1+e.deltaY*.001)))},{passive:false});
+/* picking */
+var rc=new T.Raycaster(),mv=new T.Vector2();
+function pick(e){var b=cv.getBoundingClientRect();mv.set((e.clientX-b.left)/b.width*2-1,-((e.clientY-b.top)/b.height)*2+1);rc.setFromCamera(mv,C);var h=rc.intersectObjects(all,false);if(!h.length){sel(null);return}
+var f=h.filter(function(x){return !L[x.object.userData.k]})[0]||h[0];sel(f.object.userData.k)}
+/* select */
+var cur=null,tags={},btns={};
+function sel(k){if(k===cur)k=null;cur=k;
+all.forEach(function(m){var on=m.userData.k===k;m.material.emissive.setHex(on?0x0b5a66:0);m.material.opacity=m.userData.o0+(on&&L[m.userData.k]?.22:0)});
+Object.keys(NAMES).forEach(function(n){tags[n].classList.toggle("on",n===k);btns[n].setAttribute("aria-pressed",n===k)});
+if(k){info.innerHTML="<h2>"+D[k][0]+"</h2>"+D[k][1];tgtC=V(FOC[k]);radT=L[k]?12:8.5}else{intro();tgtC=V([0,-.9,0]);radT=12}}
+Object.keys(NAMES).forEach(function(n){var b=document.createElement("button");b.textContent=NAMES[n];b.setAttribute("aria-pressed","false");b.onclick=function(){auto=false;sel(n)};tabs.appendChild(b);btns[n]=b;
+var t=document.createElement("div");t.className="tag";t.textContent=NAMES[n];t.onclick=function(){auto=false;sel(n)};stage.appendChild(t);tags[n]=t});
+/* loop */
+function resize(){W=stage.clientWidth;H=stage.clientHeight;R.setSize(W,H);C.aspect=W/H;C.updateProjectionMatrix()}
+addEventListener("resize",resize);
+var reduce=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function loop(){requestAnimationFrame(loop);if(auto&&!reduce)th+=.0025;
+tgt.lerp(tgtC,.08);rad+=(radT-rad)*.08;
+C.position.set(tgt.x+rad*Math.sin(ph)*Math.sin(th),tgt.y+rad*Math.cos(ph),tgt.z+rad*Math.sin(ph)*Math.cos(th));C.lookAt(tgt);
+R.render(S,C);
+Object.keys(ANCH).forEach(function(n){var v=V(ANCH[n]).project(C);tags[n].style.transform="translate("+((v.x*.5+.5)*W)+"px,"+((-v.y*.5+.5)*H)+"px) translate(-50%,-50%)";tags[n].style.display=v.z>1?"none":"block"})}
+loop();
+}catch(err){info.innerHTML="<h2>Model 3D tidak dapat ditampilkan</h2><p>Perangkat atau browser ini tidak mendukung WebGL. Coba buka di browser lain.</p>"}
+</script>
+</body>
+</html>
